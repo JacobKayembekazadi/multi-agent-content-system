@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Backend API Service
+  content-marketing-api:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/google-credentials.json
+      - ZAPIER_API_KEY=${ZAPIER_API_KEY:-demo-zapier-key}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-demo-api-key}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-demo-client-id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-demo-client-secret}
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_URL=postgresql://user:password@postgres:5432/content_marketing
+    volumes:
+      - ./credentials:/app/credentials:ro
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # Redis for task queuing and caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # PostgreSQL for data persistence  
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=content_marketing
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+
+volumes:
+  postgres_data: 

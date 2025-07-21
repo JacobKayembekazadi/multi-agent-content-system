@@ -1,0 +1,114 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Custom CSS for dashboard components */
+.bg-card {
+  background-color: white;
+}
+
+.text-card-foreground {
+  color: #0f172a;
+}
+
+.bg-primary {
+  background-color: #3b82f6;
+}
+
+.text-primary-foreground {
+  color: white;
+}
+
+.hover\:bg-primary\/90:hover {
+  background-color: rgba(59, 130, 246, 0.9);
+}
+
+.bg-secondary {
+  background-color: #f1f5f9;
+}
+
+.text-secondary-foreground {
+  color: #334155;
+}
+
+.hover\:bg-secondary\/80:hover {
+  background-color: rgba(241, 245, 249, 0.8);
+}
+
+.bg-accent {
+  background-color: #f8fafc;
+}
+
+.text-accent-foreground {
+  color: #0f172a;
+}
+
+.border-input {
+  border-color: #e2e8f0;
+}
+
+.bg-background {
+  background-color: white;
+}
+
+.hover\:bg-accent:hover {
+  background-color: #f8fafc;
+}
+
+.hover\:text-accent-foreground:hover {
+  color: #0f172a;
+}
+
+.ring-ring {
+  --tw-ring-color: #3b82f6;
+}
+
+.ring-offset-background {
+  --tw-ring-offset-color: white;
+}
+
+.text-muted-foreground {
+  color: #64748b;
+}
+
+.bg-destructive {
+  background-color: #ef4444;
+}
+
+.text-destructive-foreground {
+  color: white;
+}
+
+.hover\:bg-destructive\/90:hover {
+  background-color: rgba(239, 68, 68, 0.9);
+} 
