@@ -13,8 +13,12 @@ services:
   - type: web
     name: backend
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: .
+    dockerContext: backend
+    dockerfilePath: Dockerfile
+    buildFilter:
+      paths:
+      - "backend/**"
+      - "render.yaml"
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -49,8 +53,12 @@ services:
   - type: web
     name: frontend
     runtime: docker
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: .
+    dockerContext: frontend
+    dockerfilePath: Dockerfile
+    buildFilter:
+      paths:
+      - "frontend/**"
+      - "render.yaml"
     envVars:
       - key: REACT_APP_API_URL
         value: https://backend.onrender.com  # Will be updated with actual backend URL
