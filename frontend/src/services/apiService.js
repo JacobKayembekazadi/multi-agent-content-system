@@ -1,13 +1,11 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8000';  // Direct backend URL
 
 // Debug logging to help troubleshoot
 console.log('API_BASE_URL:', API_BASE_URL);
-console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 
 class ApiService {
   constructor() {
-    // Ensure we always have a valid base URL
-    this.baseURL = API_BASE_URL === 'undefined' ? 'http://localhost:8000' : API_BASE_URL;
+    this.baseURL = API_BASE_URL;
     console.log('ApiService initialized with baseURL:', this.baseURL);
   }
 
@@ -18,17 +16,21 @@ class ApiService {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      mode: 'cors',  // Enable CORS
       ...options,
     };
 
     try {
+      console.log(`Making API request to: ${url}`);
       const response = await fetch(url, config);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      console.log(`API response from ${endpoint}:`, data);
+      return data;
     } catch (error) {
       console.error(`API request failed: ${endpoint}`, error);
       throw error;
@@ -36,11 +38,20 @@ class ApiService {
   }
 
   // Health check
-  async healthCheck() {
+  async getHealth() {
     return this.request('/health');
   }
 
-  // Campaign operations
+  // Dashboard
+  async getDashboardStats() {
+    return this.request('/dashboard/stats');
+  }
+
+  async getPerformanceMetricsSystem() {
+    return this.request('/metrics/performance');
+  }
+
+  // Campaigns
   async createCampaign(campaignData) {
     return this.request('/campaigns', {
       method: 'POST',
@@ -52,42 +63,32 @@ class ApiService {
     return this.request('/campaigns');
   }
 
-  async getCampaign(campaignId) {
-    return this.request(`/campaigns/${campaignId}`);
+  async getCampaign(id) {
+    return this.request(`/campaigns/${id}`);
   }
 
-  async updateCampaign(campaignId, updates) {
-    return this.request(`/campaigns/${campaignId}`, {
+  async updateCampaign(id, campaignData) {
+    return this.request(`/campaigns/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(updates),
+      body: JSON.stringify(campaignData),
     });
   }
 
-  // Workflow operations
-  async executeWorkflow(workflowName, workflowData = {}) {
+  async deleteCampaign(id) {
+    return this.request(`/campaigns/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Workflows
+  async executeWorkflow(workflowData) {
     return this.request('/workflows/execute', {
       method: 'POST',
-      body: JSON.stringify({
-        workflow_name: workflowName,
-        workflow_data: workflowData,
-      }),
+      body: JSON.stringify(workflowData),
     });
   }
 
-  async getWorkflowStatus(workflowId) {
-    return this.request(`/workflows/${workflowId}/status`);
-  }
-
-  // Agent operations
-  async getAgentStatus() {
-    return this.request('/agents/status');
-  }
-
-  async getAgentTasks(agentName) {
-    return this.request(`/agents/${agentName}/tasks`);
-  }
-
-  // Content operations
+  // Content
   async generateContent(contentData) {
     return this.request('/content/generate', {
       method: 'POST',
@@ -95,99 +96,72 @@ class ApiService {
     });
   }
 
-  async getContent(contentId) {
-    return this.request(`/content/${contentId}`);
+  async getContent(id) {
+    return this.request(`/content/${id}`);
   }
 
-  async listContent(filters = {}) {
-    const queryParams = new URLSearchParams(filters).toString();
-    return this.request(`/content${queryParams ? `?${queryParams}` : ''}`);
+  async listContent() {
+    return this.request('/content');
   }
 
-  // Task operations
-  async getTasks(filters = {}) {
-    const queryParams = new URLSearchParams(filters).toString();
-    return this.request(`/tasks${queryParams ? `?${queryParams}` : ''}`);
-  }
-
-  async getTask(taskId) {
-    return this.request(`/tasks/${taskId}`);
-  }
-
-  // Dashboard operations
-  async getDashboardStats() {
-    return this.request('/dashboard/stats');
-  }
-
-  // Analytics operations
-  async getAnalytics(dateRange = '30d') {
-    return this.request(`/analytics?range=${dateRange}`);
-  }
-
-  async getPerformanceMetrics(campaignId, metrics = []) {
-    const queryParams = new URLSearchParams({
-      campaign_id: campaignId,
-      metrics: metrics.join(','),
-    }).toString();
-    return this.request(`/analytics/performance?${queryParams}`);
-  }
-
-  async generateReport(reportType, options = {}) {
-    return this.request('/analytics/reports', {
+  async createContent(contentData) {
+    return this.request('/content', {
       method: 'POST',
-      body: JSON.stringify({
-        type: reportType,
-        options,
-      }),
+      body: JSON.stringify(contentData),
     });
   }
 
-  async getPerformanceMetricsSystem() {
-    return this.request('/metrics/performance');
+  async updateContent(id, contentData) {
+    return this.request(`/content/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(contentData),
+    });
   }
 
-  // Integration operations
+  async deleteContent(id) {
+    return this.request(`/content/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Agents
+  async getAgentStatus() {
+    return this.request('/agents/status');
+  }
+
+  // Tasks
+  async getTasks() {
+    return this.request('/tasks');
+  }
+
+  async createTask(taskData) {
+    return this.request('/tasks', {
+      method: 'POST',
+      body: JSON.stringify(taskData),
+    });
+  }
+
+  async updateTask(id, taskData) {
+    return this.request(`/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(taskData),
+    });
+  }
+
+  // Integrations
   async getIntegrationStatus() {
     return this.request('/integrations/status');
   }
 
-  async testIntegration(integrationName) {
-    return this.request(`/integrations/${integrationName}/test`, {
+  async testIntegration(integration) {
+    return this.request('/integrations/test', {
       method: 'POST',
+      body: JSON.stringify({ integration }),
     });
-  }
-
-  // WebSocket connection for real-time updates
-  connectWebSocket(onMessage, onError = null, onClose = null) {
-    const wsUrl = (process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws');
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onMessage(data);
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      if (onError) onError(error);
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      if (onClose) onClose();
-    };
-
-    return ws;
   }
 }
 
-export const apiService = new ApiService();
+// Create and export a singleton instance
+const apiService = new ApiService();
+export { apiService };
 export default apiService; 
