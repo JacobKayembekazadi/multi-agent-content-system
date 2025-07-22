@@ -18,6 +18,15 @@ COPY . .
 # Create directories for logs and credentials
 RUN mkdir -p /app/logs /app/credentials
 
+# Create startup script
+RUN echo '#!/bin/bash\n\
+if [ ! -z "$GOOGLE_CREDENTIALS_JSON" ]; then\n\
+  echo "$GOOGLE_CREDENTIALS_JSON" > /app/credentials/google-credentials.json\n\
+fi\n\
+exec uvicorn api_backend:app --host 0.0.0.0 --port 8000' > /app/start.sh
+
+RUN chmod +x /app/start.sh
+
 # Expose port
 EXPOSE 8000
 
@@ -26,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
 # Run application
-CMD ["uvicorn", "api_backend:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["/app/start.sh"] 
