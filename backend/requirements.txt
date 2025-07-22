@@ -10,7 +10,7 @@ asyncpg==0.29.0
 sqlalchemy==2.0.23
 
 # Google AI - essential for content generation
-google-generativeai
+google-generativeai==0.4.1
 
 # Essential utilities
 httpx==0.25.2
@@ -22,7 +22,11 @@ websockets==12.0
 aiohttp==3.9.1
 
 # Optional Google Cloud (will install latest compatible versions)
-google-cloud-storage
-google-auth
-google-auth-oauthlib
-google-api-python-client 
+google-cloud-storage==2.14.0
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+google-api-python-client==2.110.0
+
+# Testing
+pytest
+pytest-mock

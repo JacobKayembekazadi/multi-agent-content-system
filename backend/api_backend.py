@@ -124,7 +124,7 @@ app.add_middleware(
 # Configuration and Dependencies
 class AgentType(Enum):
     CONTENT_STRATEGIST = "content_strategist"
-    CONTENT_CREATOR = "content_creator" 
+    CONTENT_CREATOR = "content_creator"
     SEO_OPTIMIZER = "seo_optimizer"
     SOCIAL_MEDIA_MANAGER = "social_media_manager"
     ANALYTICS_AGENT = "analytics_agent"
@@ -596,6 +596,145 @@ class ContentCreatorAgent(BaseAgent):
             "status": "created"
         }
 
+class SeoOptimizerAgent(BaseAgent):
+    """Agent responsible for SEO analysis and content optimization"""
+
+    async def process_task(self, task: Task) -> Dict[str, Any]:
+        if task.type == "analyze_seo":
+            return await self._analyze_seo(task.data)
+        elif task.type == "optimize_content":
+            return await self._optimize_content(task.data)
+
+    async def _analyze_seo(self, data: Dict) -> Dict:
+        """Analyze SEO for a given URL or content"""
+        content = data.get('content', '')
+        url = data.get('url')
+        keywords = data.get('keywords', [])
+
+        prompt = f"""
+        Analyze the SEO of the following content for the keywords: {', '.join(keywords)}.
+        URL: {url or 'N/A'}
+
+        Content:
+        {content[:1000]}...
+
+        Provide a detailed SEO analysis covering:
+        1. Keyword density and distribution.
+        2. Readability score.
+        3. Meta title and description suggestions.
+        4. On-page SEO recommendations (headings, alt text, etc.).
+        5. Off-page SEO suggestions (backlinks, social signals).
+        """
+        analysis = await self.gemini.generate_content(prompt)
+        return {"seo_analysis": analysis}
+
+    async def _optimize_content(self, data: Dict) -> Dict:
+        """Optimize content for SEO"""
+        content = data.get('content')
+        keywords = data.get('keywords', [])
+
+        prompt = f"""
+        Optimize the following content to improve its SEO for the keywords: {', '.join(keywords)}.
+
+        Content:
+        {content}
+
+        Provide the optimized content, ensuring it reads naturally while incorporating the keywords effectively.
+        Also, provide a summary of the changes made.
+        """
+        optimized_content = await self.gemini.generate_content(prompt)
+        return {"optimized_content": optimized_content}
+
+class SocialMediaManagerAgent(BaseAgent):
+    """Agent responsible for social media management"""
+
+    async def process_task(self, task: Task) -> Dict[str, Any]:
+        if task.type == "schedule_social_post":
+            return await self._schedule_social_post(task.data)
+
+    async def _schedule_social_post(self, data: Dict) -> Dict:
+        """Schedule a social media post using Zapier"""
+        content = data.get('content')
+        platform = data.get('platform')
+        
+        zap_id = f"social_media_scheduler"
+        zap_data = {
+            "content": content,
+            "platform": platform,
+            "schedule_time": "now"
+        }
+        
+        zapier_mcp = self.integrations['zapier_mcp']
+        result = await zapier_mcp.execute_zap(zap_id, zap_data)
+        
+        return {"zapier_result": result}
+
+class AnalyticsAgent(BaseAgent):
+    """Agent responsible for analytics and reporting"""
+
+    async def process_task(self, task: Task) -> Dict[str, Any]:
+        if task.type == "generate_analytics_report":
+            return await self._generate_analytics_report(task.data)
+
+    async def _generate_analytics_report(self, data: Dict) -> Dict:
+        """Generate an analytics report"""
+        property_id = data.get('property_id', 'demo')
+        metrics = data.get('metrics', ['sessions', 'users', 'pageviews'])
+        
+        analytics_data = await self.integrations['google_adk'].get_analytics_data(property_id, metrics)
+        
+        prompt = f"""
+        Analyze the following analytics data and provide a summary report.
+        Data: {analytics_data}
+
+        The report should include:
+        1. Key performance indicators (KPIs).
+        2. Trends and patterns.
+        3. Actionable insights and recommendations.
+        """
+        report = await self.gemini.generate_content(prompt)
+        return {"analytics_report": report, "raw_data": analytics_data}
+
+class CoordinatorAgent(BaseAgent):
+    """Agent responsible for orchestrating workflows and managing agent collaboration"""
+
+    async def process_task(self, task: Task) -> Dict[str, Any]:
+        if task.type == "coordinate_workflow":
+            return await self._coordinate_workflow(task.data)
+
+    async def _coordinate_workflow(self, data: Dict) -> Dict:
+        """Coordinate a multi-agent workflow"""
+        workflow_name = data.get('workflow_name')
+        workflow_data = data.get('workflow_data')
+        
+        # This is a simplified example of workflow coordination.
+        # In a real implementation, this would involve a more complex state machine
+        # and task delegation logic.
+        
+        if workflow_name == "full_content_workflow":
+            # 1. Create content with ContentCreatorAgent
+            content_task = Task(id=str(uuid.uuid4()), type="create_blog_post", priority=1, data=workflow_data)
+            content_result = await self.agents['content_creator'].process_task(content_task)
+            
+            # 2. Optimize content with SeoOptimizerAgent
+            seo_task = Task(id=str(uuid.uuid4()), type="optimize_content", priority=1, data={"content": content_result['content']['content'], "keywords": workflow_data.get('keywords', [])})
+            seo_result = await self.agents['seo_optimizer'].process_task(seo_task)
+            
+            # 3. Schedule social media post with SocialMediaManagerAgent
+            social_task = Task(id=str(uuid.uuid4()), type="schedule_social_post", priority=1, data={"content": seo_result['optimized_content'], "platform": "twitter"})
+            social_result = await self.agents['social_media_manager'].process_task(social_task)
+            
+            return {
+                "workflow": workflow_name,
+                "steps": [
+                    {"agent": "content_creator", "result": content_result},
+                    {"agent": "seo_optimizer", "result": seo_result},
+                    {"agent": "social_media_manager", "result": social_result}
+                ]
+            }
+        
+        return {"status": "unknown_workflow"}
+
 # Global framework instance
 framework = None
 
@@ -672,6 +811,30 @@ class ContentMarketingFramework:
                 type=AgentType.CONTENT_CREATOR,
                 capabilities=["writing", "content_generation", "multimedia"],
                 tools=["google_a2a", "zapier_mcp"]
+            ),
+            'seo_optimizer': AgentConfig(
+                name="seo_optimizer",
+                type=AgentType.SEO_OPTIMIZER,
+                capabilities=["seo_analysis", "optimization"],
+                tools=["google_adk"]
+            ),
+            'social_media_manager': AgentConfig(
+                name="social_media_manager",
+                type=AgentType.SOCIAL_MEDIA_MANAGER,
+                capabilities=["scheduling", "engagement"],
+                tools=["zapier_mcp"]
+            ),
+            'analytics_agent': AgentConfig(
+                name="analytics_agent",
+                type=AgentType.ANALYTICS_AGENT,
+                capabilities=["reporting", "analysis"],
+                tools=["google_adk"]
+            ),
+            'coordinator': AgentConfig(
+                name="coordinator",
+                type=AgentType.COORDINATOR,
+                capabilities=["orchestration", "workflow_management"],
+                tools=[]
             )
         }
         
@@ -680,6 +843,15 @@ class ContentMarketingFramework:
                 self.agents[name] = ContentStrategistAgent(config, self.integrations, self.gemini)
             elif name == 'content_creator':
                 self.agents[name] = ContentCreatorAgent(config, self.integrations, self.gemini)
+            elif name == 'seo_optimizer':
+                self.agents[name] = SeoOptimizerAgent(config, self.integrations, self.gemini)
+            elif name == 'social_media_manager':
+                self.agents[name] = SocialMediaManagerAgent(config, self.integrations, self.gemini)
+            elif name == 'analytics_agent':
+                self.agents[name] = AnalyticsAgent(config, self.integrations, self.gemini)
+            elif name == 'coordinator':
+                self.coordinator = CoordinatorAgent(config, self.integrations, self.gemini)
+                self.agents[name] = self.coordinator
         
         self.logger.info("Framework initialized successfully")
     
@@ -787,54 +959,23 @@ async def create_campaign(
         raise HTTPException(status_code=500, detail=f"Failed to create campaign: {str(e)}")
 
 @app.get("/campaigns")
-async def list_campaigns():
+async def list_campaigns(framework: ContentMarketingFramework = Depends(get_framework)):
     """List all campaigns"""
-    # Mock campaigns data - replace with database query in production
-    mock_campaigns = [
-        {
-            "campaign_id": "1",
-            "name": "Q4 Product Launch",
-            "status": "active",
-            "progress": 65.0,
-            "created_at": "2024-10-01T00:00:00",
-            "workflows_completed": 2,
-            "total_workflows": 3
-        },
-        {
-            "campaign_id": "2", 
-            "name": "Holiday Marketing",
-            "status": "planning",
-            "progress": 25.0,
-            "created_at": "2024-11-01T00:00:00",
-            "workflows_completed": 0,
-            "total_workflows": 4
-        }
-    ]
-    return mock_campaigns
+    if framework.db_pool:
+        async with framework.db_pool.acquire() as conn:
+            rows = await conn.fetch("SELECT id, name, status, progress, created_at FROM campaigns")
+            return [dict(row) for row in rows]
+    return []
 
 @app.get("/campaigns/{campaign_id}")
-async def get_campaign(campaign_id: str):
+async def get_campaign(campaign_id: str, framework: ContentMarketingFramework = Depends(get_framework)):
     """Get specific campaign details"""
-    # Mock implementation - replace with database query
-    return {
-        "campaign_id": campaign_id,
-        "name": "Q4 Product Launch",
-        "status": "active",
-        "progress": 65.0,
-        "created_at": "2024-10-01T00:00:00",
-        "workflows_completed": 2,
-        "total_workflows": 3,
-        "kpis": {
-            "leads_generated": {"current": 245, "target": 500},
-            "content_engagement": {"current": 3.2, "target": 4.0},
-            "brand_mentions": {"current": 158, "target": 300}
-        },
-        "recent_activities": [
-            {"activity": "Blog post created", "timestamp": "2024-07-21T10:30:00"},
-            {"activity": "SEO optimization completed", "timestamp": "2024-07-21T09:15:00"},
-            {"activity": "Social media posts scheduled", "timestamp": "2024-07-20T16:45:00"}
-        ]
-    }
+    if framework.db_pool:
+        async with framework.db_pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM campaigns WHERE id = $1", uuid.UUID(campaign_id))
+            if row:
+                return dict(row)
+    return {"error": "Campaign not found"}
 
 @app.post("/workflows/execute", response_model=TaskResponse)
 async def execute_workflow(
@@ -938,94 +1079,23 @@ async def get_dashboard_stats():
     )
 
 @app.get("/tasks")
-async def get_recent_tasks():
+async def get_recent_tasks(framework: ContentMarketingFramework = Depends(get_framework)):
     """Get recent tasks across all agents"""
-    # Mock recent tasks - replace with actual task tracking
-    recent_tasks = [
-        {
-            "id": 1,
-            "type": "Blog Post Creation",
-            "agent": "Content Creator",
-            "status": "completed",
-            "timestamp": "10:30 AM",
-            "duration": "12 minutes",
-            "result_summary": "Created 1,200-word blog post about 'AI in Marketing'"
-        },
-        {
-            "id": 2,
-            "type": "SEO Audit",
-            "agent": "SEO Optimizer", 
-            "status": "in_progress",
-            "timestamp": "10:15 AM",
-            "duration": "8 minutes so far",
-            "result_summary": "Analyzing technical SEO factors..."
-        },
-        {
-            "id": 3,
-            "type": "Social Media Schedule",
-            "agent": "Social Media Manager",
-            "status": "completed", 
-            "timestamp": "09:45 AM",
-            "duration": "5 minutes",
-            "result_summary": "Scheduled 12 posts across LinkedIn, Twitter, Instagram"
-        },
-        {
-            "id": 4,
-            "type": "Analytics Report",
-            "agent": "Analytics Agent",
-            "status": "pending",
-            "timestamp": "09:30 AM",
-            "duration": None,
-            "result_summary": "Queued for processing"
-        },
-        {
-            "id": 5,
-            "type": "Content Strategy",
-            "agent": "Content Strategist", 
-            "status": "in_progress",
-            "timestamp": "09:15 AM",
-            "duration": "25 minutes so far",
-            "result_summary": "Analyzing competitor strategies and market trends"
-        }
-    ]
-    return {"tasks": recent_tasks}
+    if framework.db_pool:
+        async with framework.db_pool.acquire() as conn:
+            rows = await conn.fetch("SELECT id, type, agent_name, status, created_at FROM tasks ORDER BY created_at DESC LIMIT 10")
+            return [dict(row) for row in rows]
+    return []
 
 @app.get("/tasks/{task_id}")
-async def get_task_details(task_id: str):
+async def get_task_details(task_id: str, framework: ContentMarketingFramework = Depends(get_framework)):
     """Get detailed information about a specific task"""
-    # Mock task details - replace with actual task tracking
-    return {
-        "task_id": task_id,
-        "type": "Blog Post Creation",
-        "agent": "Content Creator",
-        "status": "completed",
-        "created_at": "2024-07-21T10:20:00",
-        "completed_at": "2024-07-21T10:32:00",
-        "duration": "12 minutes",
-        "input_data": {
-            "topic": "AI in Marketing",
-            "target_keywords": ["ai marketing", "marketing automation", "ai tools"],
-            "word_count": 1200,
-            "tone": "professional"
-        },
-        "result": {
-            "title": "How AI is Revolutionizing Marketing in 2024",
-            "word_count": 1247,
-            "seo_score": 85,
-            "readability_score": 78,
-            "document_id": "1BvAl5_example_doc_id",
-            "preview": "Artificial intelligence is transforming how businesses approach marketing..."
-        },
-        "logs": [
-            {"timestamp": "10:20:15", "message": "Task received and queued"},
-            {"timestamp": "10:21:02", "message": "Started content research"},
-            {"timestamp": "10:24:30", "message": "Generated content outline"},
-            {"timestamp": "10:28:15", "message": "Completed content generation"},
-            {"timestamp": "10:31:45", "message": "Applied SEO optimizations"},
-            {"timestamp": "10:32:10", "message": "Saved to Google Docs"},
-            {"timestamp": "10:32:15", "message": "Task completed successfully"}
-        ]
-    }
+    if framework.db_pool:
+        async with framework.db_pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM tasks WHERE id = $1", uuid.UUID(task_id))
+            if row:
+                return dict(row)
+    return {"error": "Task not found"}
 
 @app.post("/content/generate")
 async def generate_content(
@@ -1150,4 +1220,4 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         log_level="info"
-    ) 
+    )
